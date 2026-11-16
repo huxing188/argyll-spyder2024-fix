@@ -86,16 +86,21 @@ jobs:
             test -s "$argyll_root/spectro/$file.exe"
             file "$argyll_root/spectro/$file.exe"
           done
-          mkdir -p dist/Argyll_V3.5.0_Spyder2024_OLED_fix
+          mkdir -p dist/Argyll_V3.5.0_Spyder2024_OLED_fix/bin
+          for file in spotread dispcal dispread dispwin; do
+            test -s "$argyll_root/spectro/$file.exe"
+            strings "$argyll_root/spectro/$file.exe" | grep -F '3.5.1_spyder2024fix'
+          done
           for d in spectro profile target xicc imdi gamut link namedc scanin tweak render; do
             if [ -d "$argyll_root/$d" ]; then
-              find "$argyll_root/$d" -maxdepth 1 -name '*.exe' -exec cp -n {} dist/Argyll_V3.5.0_Spyder2024_OLED_fix/ \;
+              find "$argyll_root/$d" -maxdepth 1 -name '*.exe' -exec cp -n {} dist/Argyll_V3.5.0_Spyder2024_OLED_fix/bin/ \;
             fi
           done
           if [ -d "$argyll_root/ref" ]; then cp -r "$argyll_root/ref" dist/Argyll_V3.5.0_Spyder2024_OLED_fix/; fi
-          sha256sum dist/Argyll_V3.5.0_Spyder2024_OLED_fix/{spotread,dispcal,dispread}.exe
+          cp README_PATCHED_BUILD.txt dist/Argyll_V3.5.0_Spyder2024_OLED_fix/
+          sha256sum dist/Argyll_V3.5.0_Spyder2024_OLED_fix/bin/{spotread,dispcal,dispread}.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: ArgyllCMS-3.5.0-Spyder2024-OLED-Windows-x64
+          name: ArgyllCMS-3.5.0-Spyder2024Fix-DisplayCAL-Compatible-Win64
           path: dist/Argyll_V3.5.0_Spyder2024_OLED_fix/
           if-no-files-found: error
