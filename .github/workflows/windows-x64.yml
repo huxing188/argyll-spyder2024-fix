@@ -54,10 +54,12 @@ jobs:
           JAMDIR="$(dirname "$JAMSRC")"
           cd "$JAMDIR"
           ls
-          if [ -f Makefile ]; then make -j2 || true; fi
-          if [ ! -f jam0.exe ] && [ ! -f jam.exe ]; then
-            gcc -O2 -o jam.exe ./*.c
-          fi
+          gcc -O2 -DMINGW -Wno-implicit-int -o jam.exe \
+            builtins.c command.c compile.c execunix.c execvms.c expand.c \
+            filent.c fileos2.c fileunix.c filevms.c glob.c hash.c \
+            headers.c jam.c jambase.c jamgram.c lists.c make.c make1.c \
+            newstr.c option.c parse.c pathunix.c pathvms.c regexp.c \
+            rules.c scan.c search.c timestamp.c variable.c
           JAMEXE="$(find . -maxdepth 3 -type f \( -name 'jam.exe' -o -name 'jam0.exe' \) -print -quit)"
           test -n "$JAMEXE"
           cp "$JAMEXE" /mingw64/bin/jam.exe
