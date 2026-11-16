@@ -57,7 +57,7 @@ jobs:
           # Modern MinGW headers require a writable argv pointer type for spawnvp.
           # Jam does not mutate the supplied command argument strings.
           sed -i 's/spawnvp( P_NOWAIT, argv\[0\], argv )/spawnvp( P_NOWAIT, argv[0], (char * const *)argv )/' execunix.c
-          gcc -O2 -DMINGW -Wno-implicit-int -o jam.exe \
+          gcc -O2 -DNT -DMINGW -Wno-implicit-int -o jam.exe \
             builtins.c command.c compile.c execunix.c execvms.c expand.c \
             filent.c fileos2.c fileunix.c filevms.c glob.c hash.c \
             headers.c jam.c jambase.c jamgram.c lists.c make.c make1.c \
