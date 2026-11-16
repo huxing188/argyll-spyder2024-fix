@@ -1,0 +1,87 @@
+name: Build patched ArgyllCMS 3.5.0 Windows x64
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up MSYS2 MINGW64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-python
+            mingw-w64-x86_64-zlib
+            unzip
+            zip
+            curl
+            patch
+      - name: Fetch original ArgyllCMS and the upstream Jam source
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          mkdir -p source
+          curl -fL --retry 3 --connect-timeout 20 https://www.argyllcms.com/Argyll_V3.5.0_src.zip -o source/Argyll_src.zip
+          curl -fL --retry 3 --connect-timeout 20 https://www.argyllcms.com/ajam-2.5.2-1.3.4.zip -o source/ajam.zip
+          unzip -q source/Argyll_src.zip -d source/argyll
+          unzip -q source/ajam.zip -d source/jam
+          find source/argyll -name spydX2.h
+          find source/jam -maxdepth 3 -type f | head -60
+      - name: Apply verified Spyder2024 capacity patch
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          argyll_root=$(dirname "$(find source/argyll -name Jambase -print -quit)")
+          python tools/patch_spyder2024.py "$argyll_root"
+          grep -n 'SPYDX2_MAXCALIBS' "$argyll_root/spectro/spydX2.h"
+      - name: Bootstrap Jam and compile ArgyllCMS
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          export PATH="/mingw64/bin:/usr/bin:$PATH"
+          find source/jam -type f \( -iname 'jam.exe' -o -iname 'jam0.exe' \) -print
+          JAMSRC="$(find source/jam -name 'jam.c' -print -quit)"
+          if [ -z "$JAMSRC" ]; then echo "Jam source not found"; exit 1; fi
+          JAMDIR="$(dirname "$JAMSRC")"
+          cd "$JAMDIR"
+          ls
+          if [ -f Makefile ]; then make -j2 || true; fi
+          if [ ! -f jam0.exe ] && [ ! -f jam.exe ]; then
+            gcc -O2 -o jam.exe ./*.c
+          fi
+          JAMEXE="$(find . -maxdepth 3 -type f \( -name 'jam.exe' -o -name 'jam0.exe' \) -print -quit)"
+          test -n "$JAMEXE"
+          cp "$JAMEXE" /mingw64/bin/jam.exe
+          cd "$GITHUB_WORKSPACE"
+          argyll_root=$(dirname "$(find source/argyll -name Jambase -print -quit)")
+          cd "$argyll_root"
+          jam -q -fJambase -j4
+          jam -q -fJambase -j4 install
+          find bin -maxdepth 1 -name '*.exe' -print | head -35
+      - name: Package and verify Windows PE binaries
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          argyll_root=$(dirname "$(find source/argyll -name Jambase -print -quit)")
+          for file in spotread dispcal dispread; do
+            test -s "$argyll_root/bin/$file.exe"
+            file "$argyll_root/bin/$file.exe"
+          done
+          mkdir -p dist/Argyll_V3.5.0_Spyder2024_OLED_fix
+          cp -r "$argyll_root/bin/." dist/Argyll_V3.5.0_Spyder2024_OLED_fix/
+          if [ -d "$argyll_root/ref" ]; then cp -r "$argyll_root/ref" dist/Argyll_V3.5.0_Spyder2024_OLED_fix/; fi
+          sha256sum dist/Argyll_V3.5.0_Spyder2024_OLED_fix/{spotread,dispcal,dispread}.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArgyllCMS-3.5.0-Spyder2024-OLED-Windows-x64
+          path: dist/Argyll_V3.5.0_Spyder2024_OLED_fix/
+          if-no-files-found: error
