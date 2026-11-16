@@ -69,8 +69,12 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           argyll_root=$(dirname "$(find source/argyll -name Jambase -print -quit)")
           cd "$argyll_root"
-          jam -q -fJambase -j4
-          jam -q -fJambase -j4 install
+          # Argyll Jambase must be told where native MinGW resides.
+          # Without MINGW, it silently chooses generic UNIX settings on this runner.
+          export MINGW="$(cygpath -m /mingw64)"
+          echo "Argyll MINGW=$MINGW"
+          jam -q -fJambase -sMINGW="$MINGW" -j4
+          jam -q -fJambase -sMINGW="$MINGW" -j4 install
           find bin -maxdepth 1 -name '*.exe' -print | head -35
       - name: Package and verify Windows PE binaries
         shell: msys2 {0}
